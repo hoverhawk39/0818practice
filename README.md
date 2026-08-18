@@ -2,11 +2,14 @@
 
 本專案收錄由 Gemini 輔助開發的三個獨立 Web 實用小工具，並提供現代化響應式（RWD）首頁 [`index.html`](index.html) 進行整合導覽與即時預覽。
 
+🔗 **線上正式版網址**：[https://gemini-0818practice.netlify.app](https://gemini-0818practice.netlify.app)
+
 ---
 
 ## 🌟 專案首頁
 
 - **首頁檔案**：[`index.html`](index.html)
+- **線上網址**：[https://gemini-0818practice.netlify.app](https://gemini-0818practice.netlify.app)
 - **特色**：
   - 現代深色科技美學（Luminous Dark Glassmorphism）
   - RWD 全響應式設計（手機 / 平板 / 桌面）
