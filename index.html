@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="三個 Gemini 練習小工具 - 包含台股現金流量表財務分析、本地端個資脫敏工具與 TaskPulse 跨裝置同步待辦事項。">
+    <title>三個 Gemini 練習小工具</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        :root {
+            --bg-primary: #090d16;
+            --bg-secondary: #0f172a;
+            --bg-card: rgba(22, 30, 49, 0.75);
+            --bg-card-hover: rgba(30, 41, 69, 0.85);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --border-hover: rgba(99, 102, 241, 0.4);
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --accent-blue: #3b82f6;
+            --accent-cyan: #06b6d4;
+            --accent-purple: #8b5cf6;
+            --accent-emerald: #10b981;
+            --accent-amber: #f59e0b;
+            --gradient-primary: linear-gradient(135deg, #6366f1 0%, #3b82f6 50%, #06b6d4 100%);
+            --gradient-card-1: linear-gradient(145deg, rgba(37, 99, 235, 0.12) 0%, rgba(15, 23, 42, 0.6) 100%);
+            --gradient-card-2: linear-gradient(145deg, rgba(16, 185, 129, 0.12) 0%, rgba(15, 23, 42, 0.6) 100%);
+            --gradient-card-3: linear-gradient(145deg, rgba(139, 92, 246, 0.12) 0%, rgba(15, 23, 42, 0.6) 100%);
+            --shadow-glow: 0 10px 30px -10px rgba(59, 130, 246, 0.3);
+            --radius-lg: 20px;
+            --radius-md: 14px;
+            --radius-sm: 8px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Outfit', 'Noto Sans TC', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+            background-image: 
+                radial-gradient(circle at 15% 15%, rgba(99, 102, 241, 0.15) 0%, transparent 40%),
+                radial-gradient(circle at 85% 25%, rgba(6, 182, 212, 0.12) 0%, transparent 35%),
+                radial-gradient(circle at 50% 85%, rgba(139, 92, 246, 0.12) 0%, transparent 45%);
+            background-attachment: fixed;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #090d16;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1e293b;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #334155;
+        }
+
+        /* Container */
+        .container {
+            width: 100%;
+            max-width: 1240px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        /* Navigation */
+        .navbar {
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            background: rgba(9, 13, 22, 0.8);
+            border-bottom: 1px solid var(--border-color);
+            padding: 16px 0;
+        }
+        .nav-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .brand-logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+            color: var(--text-primary);
+        }
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: var(--gradient-primary);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            color: #fff;
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+        }
+        .logo-text {
+            font-size: 1.15rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+        }
+        .logo-badge {
+            font-size: 0.7rem;
+            padding: 2px 8px;
+            background: rgba(99, 102, 241, 0.2);
+            color: #a5b4fc;
+            border: 1px solid rgba(99, 102, 241, 0.4);
+            border-radius: 99px;
+            font-weight: 600;
+            margin-left: 6px;
+        }
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .btn-github {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: var(--radius-sm);
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            text-decoration: none;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+        .btn-github:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+            transform: translateY(-1px);
+        }
+
+        /* Hero Section */
+        .hero {
+            padding: 56px 0 36px;
+            text-align: center;
+            position: relative;
+        }
+        .hero-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 16px;
+            background: rgba(99, 102, 241, 0.1);
+            border: 1px solid rgba(99, 102, 241, 0.25);
+            border-radius: 99px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #818cf8;
+            margin-bottom: 20px;
+        }
+        .hero-pill .dot {
+            width: 8px;
+            height: 8px;
+            background: #10b981;
+            border-radius: 50%;
+            box-shadow: 0 0 8px #10b981;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(0.85); }
+        }
+        .hero-title {
+            font-size: clamp(2.2rem, 5vw, 3.4rem);
+            font-weight: 800;
+            line-height: 1.15;
+            letter-spacing: -0.03em;
+            margin-bottom: 16px;
+        }
+        .gradient-text {
+            background: var(--gradient-primary);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .hero-desc {
+            font-size: clamp(1rem, 2vw, 1.15rem);
+            color: var(--text-secondary);
+            max-width: 680px;
+            margin: 0 auto 32px;
+            line-height: 1.6;
+        }
+
+        /* Quick Filter Bar */
+        .filter-bar {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 40px;
+        }
+        .filter-btn {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            padding: 8px 18px;
+            border-radius: 99px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: inherit;
+        }
+        .filter-btn:hover {
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--text-primary);
+        }
+        .filter-btn.active {
+            background: #4f46e5;
+            border-color: #6366f1;
+            color: #fff;
+            box-shadow: 0 4px 14px rgba(79, 70, 229, 0.35);
+        }
+
+        /* Tool Cards Grid */
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+            gap: 28px;
+            margin-bottom: 60px;
+        }
+        
+        .tool-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 32px 28px 24px;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow: hidden;
+        }
+        .tool-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: transparent;
+            transition: background 0.3s ease;
+        }
+        .tool-card:hover {
+            transform: translateY(-6px);
+            background: var(--bg-card-hover);
+            border-color: var(--border-hover);
+            box-shadow: var(--shadow-glow);
+        }
+        
+        /* Card Specific Themes */
+        .card-1 {
+            background: var(--gradient-card-1);
+        }
+        .card-1:hover::before {
+            background: linear-gradient(90deg, #3b82f6, #60a5fa);
+        }
+        .card-2 {
+            background: var(--gradient-card-2);
+        }
+        .card-2:hover::before {
+            background: linear-gradient(90deg, #10b981, #34d399);
+        }
+        .card-3 {
+            background: var(--gradient-card-3);
+        }
+        .card-3:hover::before {
+            background: linear-gradient(90deg, #8b5cf6, #c084fc);
+        }
+
+        /* Card Header */
+        .card-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        .card-icon {
+            width: 52px;
+            height: 52px;
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: #fff;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.25);
+        }
+        .icon-blue {
+            background: linear-gradient(135deg, #2563eb, #3b82f6);
+        }
+        .icon-emerald {
+            background: linear-gradient(135deg, #059669, #10b981);
+        }
+        .icon-purple {
+            background: linear-gradient(135deg, #7c3aed, #8b5cf6);
+        }
+
+        .status-badge {
+            font-size: 0.72rem;
+            padding: 4px 10px;
+            border-radius: 99px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .status-ready {
+            background: rgba(16, 185, 129, 0.15);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: #34d399;
+        }
+
+        /* Card Body */
+        .card-title {
+            font-size: 1.35rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 6px;
+            letter-spacing: -0.01em;
+        }
+        .card-subtitle {
+            font-size: 0.8rem;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--text-muted);
+            margin-bottom: 14px;
+        }
+        .card-desc {
+            font-size: 0.92rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+            margin-bottom: 20px;
+            flex-grow: 1;
+        }
+
+        /* Feature Bullets */
+        .feature-list {
+            list-style: none;
+            margin-bottom: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .feature-item {
+            font-size: 0.85rem;
+            color: #cbd5e1;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .feature-item i {
+            font-size: 12px;
+            color: #60a5fa;
+            width: 16px;
+            text-align: center;
+        }
+        .card-2 .feature-item i { color: #34d399; }
+        .card-3 .feature-item i { color: #c084fc; }
+
+        /* Tags */
+        .tags-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 24px;
+        }
+        .tag-chip {
+            font-size: 0.72rem;
+            padding: 3px 9px;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            color: #94a3b8;
+            font-weight: 500;
+        }
+
+        /* Action Buttons */
+        .card-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: auto;
+        }
+        .btn-launch {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px 16px;
+            border-radius: var(--radius-sm);
+            background: #3b82f6;
+            color: #fff;
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+            border: none;
+            cursor: pointer;
+        }
+        .card-1 .btn-launch { background: #2563eb; }
+        .card-1 .btn-launch:hover { background: #1d4ed8; }
+        .card-2 .btn-launch { background: #059669; box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3); }
+        .card-2 .btn-launch:hover { background: #047857; }
+        .card-3 .btn-launch { background: #7c3aed; box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3); }
+        .card-3 .btn-launch:hover { background: #6d28d9; }
+
+        .btn-launch:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn-preview {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px 16px;
+            border-radius: var(--radius-sm);
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: inherit;
+        }
+        .btn-preview:hover {
+            background: rgba(255, 255, 255, 0.12);
+            border-color: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+
+        /* Key Highlights Section */
+        .highlights-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 36px 32px;
+            margin-bottom: 60px;
+            backdrop-filter: blur(16px);
+        }
+        .highlights-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 28px;
+        }
+        .highlight-item {
+            display: flex;
+            gap: 16px;
+            align-items: flex-start;
+        }
+        .highlight-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            background: rgba(99, 102, 241, 0.15);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #818cf8;
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+        .highlight-title {
+            font-size: 1rem;
+            font-weight: 700;
+            margin-bottom: 6px;
+            color: var(--text-primary);
+        }
+        .highlight-desc {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        /* Live Preview Drawer / Modal */
+        .preview-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(8px);
+            z-index: 100;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            opacity: 0;
+            transition: opacity 0.25s ease;
+        }
+        .preview-modal.active {
+            display: flex;
+            opacity: 1;
+        }
+        .modal-dialog {
+            background: #0f172a;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: var(--radius-lg);
+            width: 100%;
+            max-width: 1200px;
+            height: 88vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+        }
+        .modal-header {
+            padding: 16px 24px;
+            background: #1e293b;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .modal-title-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .modal-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #fff;
+        }
+        .modal-header-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .modal-btn {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 6px 14px;
+            border-radius: var(--radius-sm);
+            font-size: 0.82rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+        }
+        .modal-btn:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+        .btn-close-modal {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-size: 20px;
+            cursor: pointer;
+            padding: 6px;
+            line-height: 1;
+            transition: color 0.2s ease;
+        }
+        .btn-close-modal:hover {
+            color: #fff;
+        }
+        .modal-iframe {
+            flex: 1;
+            width: 100%;
+            border: none;
+            background: #fff;
+        }
+
+        /* Footer */
+        .footer {
+            margin-top: auto;
+            border-top: 1px solid var(--border-color);
+            padding: 32px 0;
+            background: rgba(9, 13, 22, 0.95);
+        }
+        .footer-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            text-align: center;
+        }
+        @media (min-width: 640px) {
+            .footer-content {
+                flex-direction: row;
+                text-align: left;
+            }
+        }
+        .footer-text {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        /* Responsive Breakpoints */
+        @media (max-width: 768px) {
+            .cards-grid {
+                grid-template-columns: 1fr;
+            }
+            .card-actions {
+                grid-template-columns: 1fr;
+            }
+            .highlights-section {
+                padding: 24px 20px;
+            }
+            .modal-dialog {
+                height: 94vh;
+                margin: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Top Navigation Header -->
+    <header class="navbar">
+        <div class="container nav-content">
+            <a href="index.html" class="brand-logo">
+                <div class="logo-icon">
+                    <i class="fa-solid fa-shapes"></i>
+                </div>
+                <div class="logo-text">
+                    Gemini Practice <span class="logo-badge">3 Apps</span>
+                </div>
+            </a>
+
+            <div class="nav-links">
+                <a href="https://github.com/hoverhawk39/0818practice" target="_blank" rel="noopener noreferrer" class="btn-github">
+                    <i class="fa-brands fa-github"></i>
+                    <span>GitHub 專案</span>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container" style="flex: 1;">
+        
+        <!-- Hero Banner -->
+        <section class="hero">
+            <div class="hero-pill">
+                <span class="dot"></span>
+                <span>3 個 Web 工具已就緒・100% 離線安全運算</span>
+            </div>
+            <h1 class="hero-title">
+                三個 <span class="gradient-text">Gemini 練習小工具</span>
+            </h1>
+            <p class="hero-desc">
+                探索融合數據視覺化、資料隱私脫敏與即時同步待辦管理的前端應用集錦。純瀏覽器端運算，開箱即用。
+            </p>
+
+            <!-- Interactive Category Filter -->
+            <div class="filter-bar" id="filterBar">
+                <button class="filter-btn active" data-filter="all">全部工具 (3)</button>
+                <button class="filter-btn" data-filter="finance">📈 財務分析</button>
+                <button class="filter-btn" data-filter="privacy">🛡️ 個資安全</button>
+                <button class="filter-btn" data-filter="productivity">⚡ 待辦同步</button>
+            </div>
+        </section>
+
+        <!-- Tools Grid Section -->
+        <section class="cards-grid" id="toolsGrid">
+
+            <!-- Card 1: Dashboard -->
+            <article class="tool-card card-1" data-category="finance">
+                <div class="card-header">
+                    <div class="card-icon icon-blue">
+                        <i class="fa-solid fa-chart-pie"></i>
+                    </div>
+                    <span class="status-badge status-ready">
+                        <i class="fa-solid fa-circle-check"></i> 可直接使用
+                    </span>
+                </div>
+
+                <h2 class="card-title">台股合併現金流量表分析</h2>
+                <div class="card-subtitle">dashboard.html</div>
+                <p class="card-desc">
+                    專為台股財報設計的現金流指標分析系統。支援 Excel 拖曳解析、營業現金流 (OCF)、資本支出 (CapEx) 與自由現金流 (FCF) 多維度視覺化結構圖表。
+                </p>
+
+                <ul class="feature-list">
+                    <li class="feature-item">
+                        <i class="fa-solid fa-check"></i> 內建台積電 (2330) 示範數據一鍵載入
+                    </li>
+                    <li class="feature-item">
+                        <i class="fa-solid fa-check"></i> ECharts 動態折線圖、瀑布圖與結構佔比
+                    </li>
+                    <li class="feature-item">
+                        <i class="fa-solid fa-check"></i> 報表明細關鍵字即時搜尋與增減比較
+                    </li>
+                </ul>
+
+                <div class="tags-container">
+                    <span class="tag-chip">SheetJS</span>
+                    <span class="tag-chip">ECharts</span>
+                    <span class="tag-chip">財務分析</span>
+                    <span class="tag-chip">本機解析</span>
+                </div>
+
+                <div class="card-actions">
+                    <button class="btn-preview" onclick="openPreview('dashboard.html', '台股合併現金流量表財務分析 Dashboard')">
+                        <i class="fa-solid fa-eye"></i> 即時預覽
+                    </button>
+                    <a href="dashboard.html" class="btn-launch" target="_blank">
+                        <span>開啟工具</span>
+                        <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                    </a>
+                </div>
+            </article>
+
+            <!-- Card 2: Local Anonymizer -->
+            <article class="tool-card card-2" data-category="privacy">
+                <div class="card-header">
+                    <div class="card-icon icon-emerald">
+                        <i class="fa-solid fa-user-shield"></i>
+                    </div>
+                    <span class="status-badge status-ready">
+                        <i class="fa-solid fa-circle-check"></i> 離線安全
+                    </span>
+                </div>
+
+                <h2 class="card-title">本地端個資假名化與脫敏工具</h2>
+                <div class="card-subtitle">local_anonymizer_tool.html</div>
+                <p class="card-desc">
+                    符合個資法規範的高安全性遮蔽與假名化系統。支援姓名、手機、身分證字號遮罩、加鹽雜湊 (Salted SHA-256) 與關聯對照表獨立匯出。
+                </p>
+
+                <ul class="feature-list">
+                    <li class="feature-item">
+                        <i class="fa-solid fa-check"></i> 100% 瀏覽器本地運算，資料絕不上傳雲端
+                    </li>
+                    <li class="feature-item">
+                        <i class="fa-solid fa-check"></i> 4 步驟流水線：解析、設定、預覽、匯出
+                    </li>
+                    <li class="feature-item">
+                        <i class="fa-solid fa-check"></i> 支援 Excel / CSV 批次處理與保密金鑰對照表
+                    </li>
+                </ul>
+
+                <div class="tags-container">
+                    <span class="tag-chip">CryptoJS</span>
+                    <span class="tag-chip">Salted Hash</span>
+                    <span class="tag-chip">個資法合規</span>
+                    <span class="tag-chip">Excel 匯出</span>
+                </div>
+
+                <div class="card-actions">
+                    <button class="btn-preview" onclick="openPreview('local_anonymizer_tool.html', '本地端個資假名化與脫敏工具')">
+                        <i class="fa-solid fa-eye"></i> 即時預覽
+                    </button>
+                    <a href="local_anonymizer_tool.html" class="btn-launch" target="_blank">
+                        <span>開啟工具</span>
+                        <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                    </a>
+                </div>
+            </article>
+
+            <!-- Card 3: TaskPulse Sync Todo -->
+            <article class="tool-card card-3" data-category="productivity">
+                <div class="card-header">
+                    <div class="card-icon icon-purple">
+                        <i class="fa-solid fa-list-check"></i>
+                    </div>
+                    <span class="status-badge status-ready">
+                        <i class="fa-solid fa-circle-check"></i> 跨裝置同步
+                    </span>
+                </div>
+
+                <h2 class="card-title">TaskPulse 跨裝置同步待辦事項</h2>
+                <div class="card-subtitle">taskpulse_sync_todo.html</div>
+                <p class="card-desc">
+                    極致美感的暗色毛玻璃待辦管理工具。支援通行碼 (Passcode) 房間即時同步、優先級標籤、分類篩選、到期日管理與子任務進度條。
+                </p>
+
+                <ul class="feature-list">
+                    <li class="feature-item">
+                        <i class="fa-solid fa-check"></i> 通行碼即時同步 + 本機 LocalStorage 雙重備份
+                    </li>
+                    <li class="feature-item">
+                        <i class="fa-solid fa-check"></i> 多層級子任務清單與動態完成率統計
+                    </li>
+                    <li class="feature-item">
+                        <i class="fa-solid fa-check"></i> 現代化深色 Glassmorphism 響應式介面
+                    </li>
+                </ul>
+
+                <div class="tags-container">
+                    <span class="tag-chip">雲端同步</span>
+                    <span class="tag-chip">LocalStorage</span>
+                    <span class="tag-chip">待辦清單</span>
+                    <span class="tag-chip">Glassmorphism</span>
+                </div>
+
+                <div class="card-actions">
+                    <button class="btn-preview" onclick="openPreview('taskpulse_sync_todo.html', 'TaskPulse 跨裝置同步待辦事項')">
+                        <i class="fa-solid fa-eye"></i> 即時預覽
+                    </button>
+                    <a href="taskpulse_sync_todo.html" class="btn-launch" target="_blank">
+                        <span>開啟工具</span>
+                        <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                    </a>
+                </div>
+            </article>
+
+        </section>
+
+        <!-- Technical Highlights & Security Banner -->
+        <section class="highlights-section">
+            <div class="highlights-grid">
+                <div class="highlight-item">
+                    <div class="highlight-icon">
+                        <i class="fa-solid fa-shield-halved"></i>
+                    </div>
+                    <div>
+                        <h3 class="highlight-title">數據隱私零風險</h3>
+                        <p class="highlight-desc">所有工具均可在離線環境直接運行，不收集亦不轉發任何使用者數據。</p>
+                    </div>
+                </div>
+
+                <div class="highlight-item">
+                    <div class="highlight-icon">
+                        <i class="fa-solid fa-mobile-screen"></i>
+                    </div>
+                    <div>
+                        <h3 class="highlight-title">RWD 全響應式支援</h3>
+                        <p class="highlight-desc">完美適配手機、平板與桌上型電腦，隨時隨地享受流暢操作體驗。</p>
+                    </div>
+                </div>
+
+                <div class="highlight-item">
+                    <div class="highlight-icon">
+                        <i class="fa-solid fa-bolt"></i>
+                    </div>
+                    <div>
+                        <h3 class="highlight-title">輕量極速載入</h3>
+                        <p class="highlight-desc">採用現代純前端架構，無後端負擔，點擊即開即用。</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Interactive Live Preview Modal -->
+    <div class="preview-modal" id="previewModal">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <div class="modal-title-group">
+                    <i class="fa-solid fa-window-maximize" style="color: #818cf8;"></i>
+                    <span class="modal-title" id="modalTitle">工具即時預覽</span>
+                </div>
+                <div class="modal-header-actions">
+                    <a href="#" id="modalExternalLink" target="_blank" class="modal-btn">
+                        <i class="fa-solid fa-up-right-from-square"></i> 新分頁開啟
+                    </a>
+                    <button class="btn-close-modal" onclick="closePreview()" title="關閉預覽">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            </div>
+            <iframe id="previewIframe" class="modal-iframe" src="about:blank" title="Preview Frame"></iframe>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container footer-content">
+            <div class="footer-text">
+                © 2026 三個 Gemini 練習小工具・Built with HTML, CSS, and JavaScript
+            </div>
+            <div class="footer-text">
+                Repository: <a href="https://github.com/hoverhawk39/0818practice" target="_blank" style="color: #818cf8; text-decoration: none;">hoverhawk39/0818practice</a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Interactive JavaScript -->
+    <script>
+        // Category Filter Logic
+        const filterBtns = document.querySelectorAll('.filter-btn');
+        const cards = document.querySelectorAll('.tool-card');
+
+        filterBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                filterBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+
+                const filter = btn.dataset.filter;
+                cards.forEach(card => {
+                    if (filter === 'all' || card.dataset.category === filter) {
+                        card.style.display = 'flex';
+                        card.style.animation = 'fadeIn 0.4s ease forwards';
+                    } else {
+                        card.style.display = 'none';
+                    }
+                });
+            });
+        });
+
+        // Quick Preview Modal Handlers
+        const previewModal = document.getElementById('previewModal');
+        const previewIframe = document.getElementById('previewIframe');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalExternalLink = document.getElementById('modalExternalLink');
+
+        function openPreview(url, title) {
+            modalTitle.textContent = title;
+            modalExternalLink.href = url;
+            previewIframe.src = url;
+            previewModal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closePreview() {
+            previewModal.classList.remove('active');
+            previewIframe.src = 'about:blank';
+            document.body.style.overflow = '';
+        }
+
+        // Close modal on click outside dialog
+        previewModal.addEventListener('click', (e) => {
+            if (e.target === previewModal) {
+                closePreview();
+            }
+        });
+
+        // Close on ESC key
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && previewModal.classList.contains('active')) {
+                closePreview();
+            }
+        });
+    </script>
+</body>
+</html>
