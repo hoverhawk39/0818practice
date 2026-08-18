@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="h-full bg-slate-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>本地端個資假名化與脫敏工具</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- SheetJS for Excel/CSV parsing and writing -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- CryptoJS for Salted SHA-256 Hash -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+
+    <style>
+        body { font-family: 'Noto Sans TC', 'Inter', sans-serif; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body class="h-full text-slate-800 flex flex-col antialiased">
+
+    <!-- Top Navigation Header -->
+    <header class="bg-slate-900 text-white shadow-md border-b border-slate-800 sticky top-0 z-30">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="bg-blue-600 p-2 rounded-lg text-white flex items-center justify-center">
+                    <i class="fa-solid fa-user-shield text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold tracking-wide flex items-center gap-2">
+                        個資假名化與脫敏工具
+                        <span class="text-xs font-normal bg-blue-900 text-blue-200 px-2 py-0.5 rounded-full border border-blue-700">v1.2 Local Edition</span>
+                    </h1>
+                    <p class="text-xs text-slate-400">個資法合規・資料關聯保留・離線安全運算</p>
+                </div>
+            </div>
+
+            <!-- Local Security Badge -->
+            <div class="flex items-center bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 text-xs px-3 py-1.5 rounded-full shadow-inner">
+                <span class="relative flex h-2 w-2 mr-2">
+                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+                <i class="fa-solid fa-lock mr-1.5 text-emerald-400"></i>
+                <span>100% 本地端瀏覽器運算（資料絕不上傳）</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col space-y-6">
+
+        <!-- Workflow Steps Bar -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm font-medium">
+                <div id="step-indicator-1" class="flex items-center space-x-3 p-2 rounded-lg bg-blue-50 border border-blue-200 text-blue-700">
+                    <span class="w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-xs">1</span>
+                    <span>上傳 CSV / Excel 檔案</span>
+                </div>
+                <div id="step-indicator-2" class="flex items-center space-x-3 p-2 rounded-lg bg-slate-50 border border-slate-100 text-slate-400">
+                    <span class="w-7 h-7 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center font-bold text-xs">2</span>
+                    <span>自動辨識與規則設定</span>
+                </div>
+                <div id="step-indicator-3" class="flex items-center space-x-3 p-2 rounded-lg bg-slate-50 border border-slate-100 text-slate-400">
+                    <span class="w-7 h-7 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center font-bold text-xs">3</span>
+                    <span>預覽與執行脫敏</span>
+                </div>
+                <div id="step-indicator-4" class="flex items-center space-x-3 p-2 rounded-lg bg-slate-50 border border-slate-100 text-slate-400">
+                    <span class="w-7 h-7 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center font-bold text-xs">4</span>
+                    <span>匯出資料集與對照表</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 1: File Upload View -->
+        <section id="step-1-view" class="bg-white rounded-xl shadow-sm border border-slate-200 p-8 flex flex-col items-center justify-center">
+            <div class="w-full max-w-2xl text-center space-y-6">
+                <div id="drop-zone" class="border-2 border-dashed border-slate-300 hover:border-blue-500 rounded-2xl p-10 bg-slate-50/50 hover:bg-blue-50/30 transition-all cursor-pointer flex flex-col items-center group">
+                    <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 mb-4 group-hover:scale-110 transition-transform">
+                        <i class="fa-solid fa-file-excel text-3xl"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-slate-800 mb-1">拖曳檔案至此或點擊上傳</h3>
+                    <p class="text-sm text-slate-500 mb-4">支援 .xlsx, .xls, .csv 檔案（建議單檔資料量 50,000 筆以內）</p>
+                    <input type="file" id="file-input" accept=".xlsx,.xls,.csv" class="hidden">
+                    <button type="button" onclick="document.getElementById('file-input').click()" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg shadow-sm transition-colors flex items-center gap-2">
+                        <i class="fa-solid fa-folder-open"></i> 選擇本機檔案
+                    </button>
+                </div>
+
+                <div class="flex items-center justify-center space-x-4 text-xs text-slate-500 border-t border-slate-100 pt-6">
+                    <span class="flex items-center"><i class="fa-solid fa-circle-check text-emerald-500 mr-1.5"></i>自動解析標頭與資料型別</span>
+                    <span class="flex items-center"><i class="fa-solid fa-circle-check text-emerald-500 mr-1.5"></i>保留資料列關聯性</span>
+                    <button type="button" id="load-sample-btn" class="text-blue-600 hover:text-blue-800 underline font-medium cursor-pointer">
+                        <i class="fa-solid fa-flask mr-1"></i>載入測試範例檔
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Step 2 & 3 Combined Workspace View (Hidden by default) -->
+        <section id="workspace-view" class="hidden flex-1 flex flex-col space-y-6">
+            
+            <!-- Global Hash Salt Config Card -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex flex-wrap items-center justify-between gap-4">
+                <div class="flex items-center space-x-3">
+                    <div class="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
+                        <i class="fa-solid fa-key text-lg"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-bold text-slate-800">全域鹽值 (Global Salt Key)</h3>
+                        <p class="text-xs text-slate-500">當欄位採用「鹽值雜湊 (Salted SHA-256)」時，該密鑰可用於防止彩虹表攻擊並確保唯一性。</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-2 w-full sm:w-auto">
+                    <input type="text" id="global-salt-input" value="Taiwan-PII-Security-2026" class="px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none w-64" placeholder="輸入自訂密鑰/鹽值">
+                    <button type="button" id="randomize-salt-btn" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium rounded-lg transition-colors">
+                        <i class="fa-solid fa-shuffle mr-1"></i>隨機產生
+                    </button>
+                </div>
+            </div>
+
+            <!-- Column Rules Setup Panel -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col overflow-hidden">
+                <div class="p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                    <div class="flex items-center space-x-2">
+                        <i class="fa-solid fa-sliders text-blue-600"></i>
+                        <h2 class="font-bold text-slate-800 text-base">敏感欄位辨識與脫敏策略設定</h2>
+                        <span id="file-info-badge" class="bg-slate-200 text-slate-700 text-xs px-2.5 py-0.5 rounded-full font-medium"></span>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <button id="re-analyze-btn" class="text-xs text-blue-600 hover:text-blue-800 font-medium px-2 py-1 rounded hover:bg-blue-50 transition-colors">
+                            <i class="fa-solid fa-arrows-rotate mr-1"></i>重新自動偵測
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Rules Table / Cards Grid -->
+                <div class="p-4 custom-scrollbar overflow-x-auto max-h-[380px]">
+                    <table class="w-full text-left text-sm border-collapse">
+                        <thead>
+                            <tr class="border-b border-slate-200 bg-slate-50/50 text-slate-600 text-xs uppercase tracking-wider">
+                                <th class="p-3 font-semibold">原始欄位名稱</th>
+                                <th class="p-3 font-semibold">自動偵測類型</th>
+                                <th class="p-3 font-semibold">資料樣例 (第 1 筆)</th>
+                                <th class="p-3 font-semibold">處理解策 (Action Rule)</th>
+                                <th class="p-3 font-semibold">代碼前綴 / 遮蔽設定</th>
+                            </tr>
+                        </thead>
+                        <tbody id="column-rules-tbody" class="divide-y divide-slate-100">
+                            <!-- Dynamic rows will be inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Action Toolbar Footer -->
+                <div class="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
+                    <button type="button" id="reset-file-btn" class="px-4 py-2 border border-slate-300 text-slate-700 hover:bg-slate-100 text-sm font-medium rounded-lg transition-colors">
+                        <i class="fa-solid fa-arrow-left mr-1"></i>重新選擇檔案
+                    </button>
+                    <button type="button" id="apply-anonymize-btn" class="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm rounded-lg shadow-md transition-all flex items-center gap-2">
+                        <i class="fa-solid fa-bolt"></i> 執行脫敏與假名化處理
+                    </button>
+                </div>
+            </div>
+
+            <!-- Results & Preview Section -->
+            <div id="results-panel" class="hidden bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col">
+                <div class="p-4 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 bg-slate-50/50">
+                    <!-- Tabs -->
+                    <div class="flex space-x-2 border-b border-transparent">
+                        <button id="tab-data-btn" class="px-4 py-2 text-sm font-bold border-b-2 border-blue-600 text-blue-600 transition-colors flex items-center gap-2">
+                            <i class="fa-solid fa-table"></i> 脫敏後資料預覽
+                            <span id="data-count-badge" class="bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded-full"></span>
+                        </button>
+                        <button id="tab-mapping-btn" class="px-4 py-2 text-sm font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-700 transition-colors flex items-center gap-2">
+                            <i class="fa-solid fa-key text-amber-500"></i> 對照字典 (Mapping Table)
+                            <span id="mapping-count-badge" class="bg-amber-100 text-amber-800 text-xs px-2 py-0.5 rounded-full"></span>
+                        </button>
+                    </div>
+
+                    <!-- Export Actions -->
+                    <div class="flex items-center space-x-2">
+                        <button type="button" id="export-combined-btn" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg shadow-sm transition-colors flex items-center gap-2">
+                            <i class="fa-solid fa-file-excel"></i> 匯出完整 Excel (含對照表分頁)
+                        </button>
+                        <button type="button" id="export-data-only-btn" class="px-3 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-medium rounded-lg shadow-sm transition-colors flex items-center gap-1.5">
+                            <i class="fa-solid fa-file-csv"></i> 僅匯出脫敏資料 (.csv)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Preview Content Area -->
+                <div class="p-4 custom-scrollbar overflow-x-auto max-h-96">
+                    <!-- Data Preview Table -->
+                    <div id="preview-data-view">
+                        <table id="preview-data-table" class="w-full text-left text-xs border-collapse">
+                            <thead id="preview-data-thead" class="bg-slate-100 text-slate-700 font-semibold border-b border-slate-200"></thead>
+                            <tbody id="preview-data-tbody" class="divide-y divide-slate-100 text-slate-600"></tbody>
+                        </table>
+                    </div>
+
+                    <!-- Mapping Table View (Hidden by default) -->
+                    <div id="preview-mapping-view" class="hidden">
+                        <div class="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-xs flex items-center justify-between">
+                            <span><i class="fa-solid fa-triangle-exclamation mr-1.5 text-amber-600"></i>此對照表包含「原始敏感資料」與「假名代碼」之對應關聯，請妥善保管並妥善加密儲存。</span>
+                        </div>
+                        <table class="w-full text-left text-xs border-collapse">
+                            <thead class="bg-amber-100/60 text-amber-900 font-semibold border-b border-amber-200">
+                                <tr>
+                                    <th class="p-2.5">對應欄位 (Column)</th>
+                                    <th class="p-2.5">真實資料 (Original Value)</th>
+                                    <th class="p-2.5">假名代碼 / 雜湊值 (Pseudonym Token)</th>
+                                    <th class="p-2.5">採用策略 (Strategy)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="preview-mapping-tbody" class="divide-y divide-slate-100 text-slate-600"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Notification Toast Container -->
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col space-y-2 pointer-events-none"></div>
+
+    <script>
+    const AppState = {
+        rawData: [],          // Raw JSON rows from Excel/CSV
+        headers: [],          // Column headers
+        fileName: '',         // File name
+        columnRules: {},      // Config for each column
+        processedData: [],    // Anonymized JSON rows
+        mappingDict: {},      // Persistent lookup: { columnName: { originalValue: pseudoToken } }
+        mappingList: [],      // Flat array for Mapping Sheet export
+        sequentialCounters: {}// Counters for auto-increment IDs per column
+    };
+
+    const PIIPatterns = {
+        twId: {
+            name: "身分證字號",
+            regex: /^[A-Z][1289]\d{8}$/i,
+            headerRegex: /(身分證|身份证|id_number|tw_id|tax_id)/i,
+            defaultAction: "PSEUDO_SEQ",
+            prefix: "SUBJ_"
+        },
+        mobile: {
+            name: "手機號碼",
+            regex: /^09\d{2}[- ]?\d{3}[- ]?\d{3}$/,
+            headerRegex: /(手機|行动电话|mobile|phone|cell)/i,
+            defaultAction: "MASK_PHONE",
+            prefix: ""
+        },
+        tel: {
+            name: "市內電話",
+            regex: /^0\d{1,2}[- ]?\d{6,8}$/,
+            headerRegex: /(電話|市話|tel)/i,
+            defaultAction: "MASK_TEL",
+            prefix: ""
+        },
+        email: {
+            name: "電子郵件",
+            regex: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/,
+            headerRegex: /(email|e-mail|信箱|郵件)/i,
+            defaultAction: "MASK_EMAIL",
+            prefix: ""
+        },
+        chineseName: {
+            name: "中文姓名",
+            regex: /^[\u4e00-\u9fa5]{2,4}$/,
+            headerRegex: /(姓名|客戶名|聯絡人|會員名|name)/i,
+            defaultAction: "MASK_NAME",
+            prefix: ""
+        },
+        address: {
+            name: "地址",
+            regex: /^[\u4e00-\u9fa50-9A-Za-z]+(市|縣|區|鄉|鎮|路|街|段|巷|弄|號|樓)/,
+            headerRegex: /(地址|住址|通訊地|addr)/i,
+            defaultAction: "MASK_ADDR",
+            prefix: ""
+        },
+        creditCard: {
+            name: "信用卡號",
+            regex: /^\d{4}[- ]?\d{4}[- ]?\d{4}[- ]?\d{4}$/,
+            headerRegex: /(card|信用卡|卡號)/i,
+            defaultAction: "HASH_SALT",
+            prefix: ""
+        }
+    };
+
+    document.addEventListener('DOMContentLoaded', () => {
+        initEventListeners();
+    });
+
+    function initEventListeners() {
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+
+        // Drag and Drop
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                dropZone.classList.add('border-blue-500', 'bg-blue-50/50');
+            }, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                dropZone.classList.remove('border-blue-500', 'bg-blue-50/50');
+            }, false);
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            const files = e.dataTransfer.files;
+            if (files.length > 0) handleFileSelect(files[0]);
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) handleFileSelect(e.target.files[0]);
+        });
+
+        // Sample Data Generator Button
+        document.getElementById('load-sample-btn').addEventListener('click', loadSampleData);
+
+        // Reset file
+        document.getElementById('reset-file-btn').addEventListener('click', resetToStep1);
+
+        // Apply Anonymization
+        document.getElementById('apply-anonymize-btn').addEventListener('click', processAnonymization);
+
+        // Tab Switching
+        document.getElementById('tab-data-btn').addEventListener('click', () => switchTab('data'));
+        document.getElementById('tab-mapping-btn').addEventListener('click', () => switchTab('mapping'));
+
+        // Export Actions
+        document.getElementById('export-combined-btn').addEventListener('click', () => exportExcel(true));
+        document.getElementById('export-data-only-btn').addEventListener('click', () => exportCSVDataOnly());
+
+        // Randomize Salt
+        document.getElementById('randomize-salt-btn').addEventListener('click', () => {
+            const randSalt = 'SALT-' + Math.random().toString(36).substring(2, 10).toUpperCase();
+            document.getElementById('global-salt-input').value = randSalt;
+            showToast('已生成新鹽值 Key: ' + randSalt, 'info');
+        });
+
+        // Re-analyze
+        document.getElementById('re-analyze-btn').addEventListener('click', () => {
+            analyzeAndBuildRules();
+            showToast('已重新進行敏感欄位分析', 'info');
+        });
+    }
+
+    function handleFileSelect(file) {
+        AppState.fileName = file.name;
+        const reader = new FileReader();
+
+        reader.onload = function(e) {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                
+                // Parse sheet to JSON objects
+                const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+
+                if (!jsonData || jsonData.length === 0) {
+                    showToast('檔案格式錯誤或無內容資料', 'error');
+                    return;
+                }
+
+                AppState.rawData = jsonData;
+                AppState.headers = Object.keys(jsonData[0]);
+
+                // Proceed to Step 2
+                analyzeAndBuildRules();
+                switchToStep2();
+                showToast(`成功載入 ${jsonData.length} 筆資料`, 'success');
+
+            } catch (err) {
+                console.error(err);
+                showToast('讀取檔案失敗，請確定檔案為標準 Excel 或 CSV', 'error');
+            }
+        };
+
+        reader.readAsArrayBuffer(file);
+    }
+
+    function loadSampleData() {
+        const sampleRows = [
+            { "客戶姓名": "張小明", "身分證號": "A123456789", "手機號碼": "0912345678", "電子郵件": "ming.chang@example.com", "通訊地址": "臺北市中山區南京東路二段100號", "消費金額": 4500, "交易日期": "2026-08-10" },
+            { "客戶姓名": "陳美麗", "身分證號": "B220987654", "手機號碼": "0987654321", "電子郵件": "meili.chen@gmail.com", "通訊地址": "新北市板橋區文化路一段50號", "消費金額": 12800, "交易日期": "2026-08-11" },
+            { "客戶姓名": "張小明", "身分證號": "A123456789", "手機號碼": "0912345678", "電子郵件": "ming.chang@example.com", "通訊地址": "臺北市中山區南京東路二段100號", "消費金額": 3200, "交易日期": "2026-08-15" },
+            { "客戶姓名": "林志豪", "身分證號": "H109823741", "手機號碼": "0933112233", "電子郵件": "lin.ch@company.com.tw", "通訊地址": "桃園市中壢區中正路150號", "消費金額": 890, "交易日期": "2026-08-16" },
+            { "客戶姓名": "黃雅婷", "身分證號": "E287112233", "手機號碼": "0955667788", "電子郵件": "yating.huang@yahoo.com.tw", "通訊地址": "臺中市西區台灣大道二段200號", "消費金額": 25000, "交易日期": "2026-08-18" }
+        ];
+
+        AppState.fileName = "Sample_Customer_PII_Data.xlsx";
+        AppState.rawData = sampleRows;
+        AppState.headers = Object.keys(sampleRows[0]);
+
+        analyzeAndBuildRules();
+        switchToStep2();
+        showToast('已載入測試個資範例資料（5 筆）', 'info');
+    }
+
+    function analyzeAndBuildRules() {
+        AppState.columnRules = {};
+
+        AppState.headers.forEach(header => {
+            let detectedType = null;
+            let sampleVal = "";
+
+            // Find sample non-empty value
+            for (let i = 0; i < Math.min(AppState.rawData.length, 20); i++) {
+                const val = String(AppState.rawData[i][header] || '').trim();
+                if (val) {
+                    sampleVal = val;
+                    break;
+                }
+            }
+
+            // Check patterns against header name or value
+            for (const [key, pattern] of Object.entries(PIIPatterns)) {
+                const headerMatch = pattern.headerRegex.test(header);
+                const valueMatch = sampleVal ? pattern.regex.test(sampleVal) : false;
+
+                if (headerMatch || valueMatch) {
+                    detectedType = key;
+                    break;
+                }
+            }
+
+            // Default Rule Construction
+            if (detectedType) {
+                const pat = PIIPatterns[detectedType];
+                AppState.columnRules[header] = {
+                    detectedType: detectedType,
+                    detectedName: pat.name,
+                    action: pat.defaultAction,
+                    prefix: pat.prefix || (header + '_'),
+                    maskChar: '*'
+                };
+            } else {
+                AppState.columnRules[header] = {
+                    detectedType: 'none',
+                    detectedName: '一般資料',
+                    action: 'KEEP',
+                    prefix: '',
+                    maskChar: '*'
+                };
+            }
+        });
+
+        renderColumnRulesTable();
+    }
+
+    function renderColumnRulesTable() {
+        const tbody = document.getElementById('column-rules-tbody');
+        tbody.innerHTML = '';
+
+        AppState.headers.forEach(header => {
+            const rule = AppState.columnRules[header];
+            const sampleVal = String(AppState.rawData[0][header] || '');
+
+            const tr = document.createElement('tr');
+            tr.className = "hover:bg-slate-50 transition-colors";
+
+            // Type Tag Color
+            let typeBadgeClass = "bg-slate-100 text-slate-600";
+            if (rule.detectedType !== 'none') {
+                typeBadgeClass = "bg-amber-100 text-amber-800 border border-amber-300 font-semibold";
+            }
+
+            tr.innerHTML = `
+                <td class="p-3 font-semibold text-slate-800">${escapeHtml(header)}</td>
+                <td class="p-3">
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs ${typeBadgeClass}">
+                        ${rule.detectedType !== 'none' ? '<i class="fa-solid fa-triangle-exclamation mr-1 text-amber-600"></i>' : ''}
+                        ${rule.detectedName}
+                    </span>
+                </td>
+                <td class="p-3 text-slate-500 font-mono text-xs truncate max-w-[180px]" title="${escapeHtml(sampleVal)}">
+                    ${escapeHtml(sampleVal) || '<span class="text-slate-300">無資料</span>'}
+                </td>
+                <td class="p-3">
+                    <select onchange="updateColumnAction('${escapeJsString(header)}', this.value)" class="px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none w-full">
+                        <option value="KEEP" ${rule.action === 'KEEP' ? 'selected' : ''}>保持原樣 (Keep Original)</option>
+                        <option value="PSEUDO_SEQ" ${rule.action === 'PSEUDO_SEQ' ? 'selected' : ''}>順序假名代碼 (e.g. ${rule.prefix || 'ID_'}0001)</option>
+                        <option value="HASH_SALT" ${rule.action === 'HASH_SALT' ? 'selected' : ''}>鹽值雜湊 (Salted SHA-256)</option>
+                        <option value="MASK_NAME" ${rule.action === 'MASK_NAME' ? 'selected' : ''}>姓名遮蔽 (張*明)</option>
+                        <option value="MASK_PHONE" ${rule.action === 'MASK_PHONE' ? 'selected' : ''}>手機遮蔽 (0912-***-678)</option>
+                        <option value="MASK_TEL" ${rule.action === 'MASK_TEL' ? 'selected' : ''}>市話遮蔽 (02-****-5678)</option>
+                        <option value="MASK_EMAIL" ${rule.action === 'MASK_EMAIL' ? 'selected' : ''}>Email 遮蔽 (us***@domain.com)</option>
+                        <option value="MASK_ADDR" ${rule.action === 'MASK_ADDR' ? 'selected' : ''}>地址遮蔽 (保留前縣市)</option>
+                        <option value="REMOVE" ${rule.action === 'REMOVE' ? 'selected' : ''}>刪除欄位 (Remove Field)</option>
+                    </select>
+                </td>
+                <td class="p-3">
+                    <input type="text" value="${escapeHtml(rule.prefix)}" placeholder="代碼前綴" 
+                        onchange="updateColumnPrefix('${escapeJsString(header)}', this.value)"
+                        class="px-2 py-1 text-xs border border-slate-200 rounded focus:ring-1 focus:ring-blue-500 focus:outline-none w-28 font-mono ${rule.action === 'PSEUDO_SEQ' ? '' : 'bg-slate-50 text-slate-400'}"
+                        ${rule.action === 'PSEUDO_SEQ' ? '' : 'disabled'}>
+                </td>
+            `;
+
+            tbody.appendChild(tr);
+        });
+    }
+
+    function updateColumnAction(header, action) {
+        AppState.columnRules[header].action = action;
+        renderColumnRulesTable(); // re-render to update input disabled states
+    }
+
+    function updateColumnPrefix(header, prefix) {
+        AppState.columnRules[header].prefix = prefix;
+    }
+
+    function processAnonymization() {
+        const globalSalt = document.getElementById('global-salt-input').value || 'DefaultSalt';
+        
+        // Reset Lookup Maps
+        AppState.mappingDict = {}; 
+        AppState.mappingList = [];
+        AppState.sequentialCounters = {};
+        AppState.processedData = [];
+
+        // Pre-initialize counters and dictionaries
+        AppState.headers.forEach(h => {
+            AppState.mappingDict[h] = {};
+            AppState.sequentialCounters[h] = 1;
+        });
+
+        // Iterate through all rows
+        AppState.rawData.forEach((row, rowIndex) => {
+            const processedRow = {};
+
+            AppState.headers.forEach(header => {
+                const rule = AppState.columnRules[header];
+                const rawVal = row[header] !== undefined && row[header] !== null ? String(row[header]).trim() : '';
+
+                if (rule.action === 'REMOVE') {
+                    // Do not include this key in processed row
+                    return;
+                }
+
+                if (!rawVal || rule.action === 'KEEP') {
+                    processedRow[header] = rawVal;
+                    return;
+                }
+
+                let newVal = rawVal;
+
+                // Check persistent identity lookup first to maintain relational integrity!
+                if (AppState.mappingDict[header][rawVal]) {
+                    newVal = AppState.mappingDict[header][rawVal];
+                } else {
+                    // Apply transformation strategy
+                    switch(rule.action) {
+                        case 'PSEUDO_SEQ': {
+                            const count = AppState.sequentialCounters[header]++;
+                            const prefix = rule.prefix || 'ID_';
+                            const paddedNum = String(count).padStart(4, '0');
+                            newVal = `${prefix}${paddedNum}`;
+                            
+                            // Save to mapping table
+                            AppState.mappingDict[header][rawVal] = newVal;
+                            AppState.mappingList.push({
+                                column: header,
+                                originalValue: rawVal,
+                                pseudoToken: newVal,
+                                strategy: '順序代碼 (Sequential ID)'
+                            });
+                            break;
+                        }
+
+                        case 'HASH_SALT': {
+                            // CryptoJS SHA-256
+                            const hash = CryptoJS.SHA256(rawVal + globalSalt).toString(CryptoJS.enc.Hex).substring(0, 16).toUpperCase();
+                            newVal = `HASH_${hash}`;
+
+                            AppState.mappingDict[header][rawVal] = newVal;
+                            AppState.mappingList.push({
+                                column: header,
+                                originalValue: rawVal,
+                                pseudoToken: newVal,
+                                strategy: '鹽值雜湊 (Salted SHA-256)'
+                            });
+                            break;
+                        }
+
+                        case 'MASK_NAME':
+                            newVal = maskChineseName(rawVal);
+                            break;
+
+                        case 'MASK_PHONE':
+                            newVal = maskPhone(rawVal);
+                            break;
+
+                        case 'MASK_TEL':
+                            newVal = maskTel(rawVal);
+                            break;
+
+                        case 'MASK_EMAIL':
+                            newVal = maskEmail(rawVal);
+                            break;
+
+                        case 'MASK_ADDR':
+                            newVal = maskAddress(rawVal);
+                            break;
+
+                        default:
+                            newVal = rawVal;
+                    }
+                }
+
+                processedRow[header] = newVal;
+            });
+
+            AppState.processedData.push(processedRow);
+        });
+
+        // Update UI Preview
+        renderPreview();
+        document.getElementById('results-panel').classList.remove('hidden');
+        document.getElementById('step-indicator-3').classList.remove('bg-slate-50', 'text-slate-400');
+        document.getElementById('step-indicator-3').classList.add('bg-blue-50', 'border-blue-200', 'text-blue-700');
+        document.getElementById('step-indicator-4').classList.remove('bg-slate-50', 'text-slate-400');
+        document.getElementById('step-indicator-4').classList.add('bg-emerald-50', 'border-emerald-200', 'text-emerald-700');
+
+        showToast(`脫敏完成！共處理 ${AppState.processedData.length} 筆資料與 ${AppState.mappingList.length} 筆對照記錄`, 'success');
+        
+        // Scroll to preview
+        document.getElementById('results-panel').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function maskChineseName(name) {
+        if (!name) return '';
+        if (name.length === 2) return name[0] + '*';
+        if (name.length === 3) return name[0] + '*' + name[2];
+        if (name.length > 3) return name[0] + '**' + name[name.length - 1];
+        return name;
+    }
+
+    function maskPhone(phone) {
+        // e.g. 0912345678 -> 0912-***-678 or 0912***678
+        const clean = phone.replace(/[- ]/g, '');
+        if (clean.length === 10) {
+            return clean.substring(0, 4) + '-***-' + clean.substring(7);
+        }
+        return phone.substring(0, 3) + '****' + phone.substring(Math.max(3, phone.length - 2));
+    }
+
+    function maskTel(tel) {
+        if (tel.length < 6) return '****';
+        return tel.substring(0, 3) + '****' + tel.substring(Math.max(3, tel.length - 2));
+    }
+
+    function maskEmail(email) {
+        const parts = email.split('@');
+        if (parts.length !== 2) return email;
+        const user = parts[0];
+        const domain = parts[1];
+        
+        let maskedUser = user;
+        if (user.length <= 2) {
+            maskedUser = user[0] + '*';
+        } else {
+            maskedUser = user.substring(0, 2) + '***' + user.substring(user.length - 1);
+        }
+        return `${maskedUser}@${domain}`;
+    }
+
+    function maskAddress(addr) {
+        // Preserve City/District, Mask detailed street/number
+        const match = addr.match(/^([\u4e00-\u9fa5]{2,3}(市|縣))([\u4e00-\u9fa5]{2,4}(區|鄉|鎮|市))?/);
+        if (match) {
+            return match[0] + ' *** 遮蔽詳細地址 ***';
+        }
+        if (addr.length > 6) {
+            return addr.substring(0, 6) + '***';
+        }
+        return addr;
+    }
+
+    function renderPreview() {
+        // Render Data Table
+        const thead = document.getElementById('preview-data-thead');
+        const tbody = document.getElementById('preview-data-tbody');
+        thead.innerHTML = '';
+        tbody.innerHTML = '';
+
+        if (AppState.processedData.length === 0) return;
+
+        // Headers
+        const activeHeaders = Object.keys(AppState.processedData[0]);
+        const trHead = document.createElement('tr');
+        activeHeaders.forEach(h => {
+            const th = document.createElement('th');
+            th.className = 'p-2.5';
+            th.textContent = h;
+            trHead.appendChild(th);
+        });
+        thead.appendChild(trHead);
+
+        // Preview First 50 rows
+        const previewRows = AppState.processedData.slice(0, 50);
+        previewRows.forEach(row => {
+            const tr = document.createElement('tr');
+            tr.className = 'hover:bg-slate-50 transition-colors';
+            activeHeaders.forEach(h => {
+                const td = document.createElement('td');
+                td.className = 'p-2.5 font-mono';
+                td.textContent = row[h] || '';
+                tr.appendChild(td);
+            });
+            tbody.appendChild(tr);
+        });
+
+        // Render Mapping Table
+        const mappingTbody = document.getElementById('preview-mapping-tbody');
+        mappingTbody.innerHTML = '';
+
+        AppState.mappingList.slice(0, 100).forEach(item => {
+            const tr = document.createElement('tr');
+            tr.className = 'hover:bg-amber-50/50 transition-colors';
+            tr.innerHTML = `
+                <td class="p-2.5 font-semibold text-slate-800">${escapeHtml(item.column)}</td>
+                <td class="p-2.5 font-mono text-slate-600">${escapeHtml(item.originalValue)}</td>
+                <td class="p-2.5 font-mono text-blue-700 font-bold">${escapeHtml(item.pseudoToken)}</td>
+                <td class="p-2.5 text-slate-500">${escapeHtml(item.strategy)}</td>
+            `;
+            mappingTbody.appendChild(tr);
+        });
+
+        // Badges
+        document.getElementById('data-count-badge').textContent = `${AppState.processedData.length} 筆`;
+        document.getElementById('mapping-count-badge').textContent = `${AppState.mappingList.length} 筆關鍵字詞`;
+    }
+
+    function switchTab(tab) {
+        const dataBtn = document.getElementById('tab-data-btn');
+        const mappingBtn = document.getElementById('tab-mapping-btn');
+        const dataView = document.getElementById('preview-data-view');
+        const mappingView = document.getElementById('preview-mapping-view');
+
+        if (tab === 'data') {
+            dataBtn.className = "px-4 py-2 text-sm font-bold border-b-2 border-blue-600 text-blue-600 transition-colors flex items-center gap-2";
+            mappingBtn.className = "px-4 py-2 text-sm font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-700 transition-colors flex items-center gap-2";
+            dataView.classList.remove('hidden');
+            mappingView.classList.add('hidden');
+        } else {
+            mappingBtn.className = "px-4 py-2 text-sm font-bold border-b-2 border-amber-500 text-amber-700 transition-colors flex items-center gap-2";
+            dataBtn.className = "px-4 py-2 text-sm font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-700 transition-colors flex items-center gap-2";
+            mappingView.classList.remove('hidden');
+            dataView.classList.add('hidden');
+        }
+    }
+
+    function exportExcel(includeMappingSheet = true) {
+        if (AppState.processedData.length === 0) {
+            showToast('尚無可匯出的資料', 'error');
+            return;
+        }
+
+        const wb = XLSX.utils.book_new();
+
+        // 1. Anonymized Data Sheet
+        const wsData = XLSX.utils.json_to_sheet(AppState.processedData);
+        XLSX.utils.book_append_sheet(wb, wsData, "已脫敏假名化資料");
+
+        // 2. Secret Key Mapping Sheet
+        if (includeMappingSheet && AppState.mappingList.length > 0) {
+            const wsMapping = XLSX.utils.json_to_sheet(AppState.mappingList.map(item => ({
+                "對應欄位 (Column)": item.column,
+                "真實敏感資料 (Original)": item.originalValue,
+                "假名代碼 (Pseudo Token)": item.pseudoToken,
+                "轉換策略 (Strategy)": item.strategy
+            })));
+            XLSX.utils.book_append_sheet(wb, wsMapping, "保密對照表 (Key Mapping)");
+        }
+
+        const baseName = AppState.fileName.replace(/\.[^/.]+$/, "");
+        const exportFileName = `${baseName}_Anonymized_${formatDate(new Date())}.xlsx`;
+
+        XLSX.writeFile(wb, exportFileName);
+        showToast(`已成功匯出 Excel 檔案: ${exportFileName}`, 'success');
+    }
+
+    function exportCSVDataOnly() {
+        if (AppState.processedData.length === 0) return;
+
+        const ws = XLSX.utils.json_to_sheet(AppState.processedData);
+        const csv = XLSX.utils.sheet_to_csv(ws);
+        
+        const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        
+        const baseName = AppState.fileName.replace(/\.[^/.]+$/, "");
+        a.href = url;
+        a.download = `${baseName}_Anonymized_${formatDate(new Date())}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        showToast('已成功匯出 CSV 資料檔', 'success');
+    }
+
+    function switchToStep2() {
+        document.getElementById('step-1-view').classList.add('hidden');
+        document.getElementById('workspace-view').classList.remove('hidden');
+
+        document.getElementById('step-indicator-1').classList.remove('bg-blue-50', 'border-blue-200', 'text-blue-700');
+        document.getElementById('step-indicator-1').classList.add('bg-emerald-50', 'border-emerald-200', 'text-emerald-700');
+        document.getElementById('step-indicator-2').classList.remove('bg-slate-50', 'text-slate-400');
+        document.getElementById('step-indicator-2').classList.add('bg-blue-50', 'border-blue-200', 'text-blue-700');
+
+        document.getElementById('file-info-badge').textContent = `${AppState.fileName} (${AppState.rawData.length} 筆)`;
+    }
+
+    function resetToStep1() {
+        AppState.rawData = [];
+        AppState.headers = [];
+        AppState.processedData = [];
+        AppState.mappingList = [];
+        document.getElementById('file-input').value = '';
+
+        document.getElementById('workspace-view').classList.add('hidden');
+        document.getElementById('results-panel').classList.add('hidden');
+        document.getElementById('step-1-view').classList.remove('hidden');
+
+        // Reset indicators
+        ['step-indicator-2', 'step-indicator-3', 'step-indicator-4'].forEach(id => {
+            document.getElementById(id).className = "flex items-center space-x-3 p-2 rounded-lg bg-slate-50 border border-slate-100 text-slate-400";
+        });
+        document.getElementById('step-indicator-1').className = "flex items-center space-x-3 p-2 rounded-lg bg-blue-50 border border-blue-200 text-blue-700";
+    }
+
+    function showToast(message, type = 'info') {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        toast.className = `pointer-events-auto flex items-center space-x-2 px-4 py-3 rounded-lg shadow-lg text-xs font-medium text-white transition-all transform translate-y-2 opacity-0 duration-300 ${
+            type === 'success' ? 'bg-emerald-600' : type === 'error' ? 'bg-red-600' : 'bg-slate-800'
+        }`;
+
+        const icon = type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle';
+        toast.innerHTML = `<i class="fa-solid ${icon} text-base"></i><span>${escapeHtml(message)}</span>`;
+
+        container.appendChild(toast);
+
+        // Animate in
+        requestAnimationFrame(() => {
+            toast.classList.remove('translate-y-2', 'opacity-0');
+        });
+
+        // Auto remove
+        setTimeout(() => {
+            toast.classList.add('opacity-0');
+            setTimeout(() => toast.remove(), 300);
+        }, 4000);
+    }
+
+    function formatDate(date) {
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        const hh = String(date.getHours()).padStart(2, '0');
+        const mm = String(date.getMinutes()).padStart(2, '0');
+        return `${y}${m}${d}_${hh}${mm}`;
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&rawgt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+
+    function escapeJsString(str) {
+        return str.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    }
+    </script>
+</body>
+</html>
